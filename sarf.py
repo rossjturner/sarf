@@ -139,6 +139,9 @@ def plot_sarf(s_range, theta_range, sigma_dB, cmap='viridis'):
 
 def get_stations(network, station, location, channel, starttime, endtime, station_name='stations', providers=['IRIS', 'LMU', 'GFZ'], user=None, password=None, download=True):
         
+    # Suppress warnings due to (e.g.) multiple location codes
+    warnings.filterwarnings('ignore', message='Found more than one matching channel metadata')
+    
     # Manage possible input types for seismic stations
     network, station, location = __test_inputs(network, station, location)
     if not isinstance(channel, (list, np.ndarray)):
@@ -159,8 +162,7 @@ def get_stations(network, station, location, channel, starttime, endtime, statio
             # Read-in data from local file if it exists
             try:
                 inv = read_inventory(station_name+'/'+network[i]+'.'+station[i]+'.'+location[i]+'.'+channel[j]+'.xml')
-                #print(station_name+'/'+network[i]+'.'+station[i]+'.'+location[i]+'.'+channel[j]+'.xml')
-            
+                
             # Download data from client server
             except Exception:
                 print('Accessing data from client server.')
@@ -187,7 +189,6 @@ def get_stations(network, station, location, channel, starttime, endtime, statio
         
         # Append station coordinates
         if not inv == None:
-            #print(inv.get_coordinates(network[i]+'.'+station[i]+'.'+location[i]+'.'+channel[j]))
             coords.append(inv.get_coordinates(network[i]+'.'+station[i]+'.'+location[i]+'.'+channel[j]))
             
     return coords
@@ -319,13 +320,9 @@ def IAS_Capon(network, station, location, channel, starttime, endtime, waveform_
     
     # Remove coordinates of stations with no data in requested time window
     __missing_data(network, station, location, coords, stream)
-    print(len(coords))
-
     
     # Calculate position vector for seismic array
     r_E, r_N, r_Z = __array_config(coords)
-    print(r_E)
-    print(len(r_E))
     
     # Slice waveform data into time windows separated for each station
     traces, nstations, nwindows, nsamples = __time_windows(stream, window_length, overlap=overlap, tapering=tapering)
@@ -336,7 +333,7 @@ def IAS_Capon(network, station, location, channel, starttime, endtime, waveform_
     # Calculate cross-spectral density between stations, and accumulate over time windows
     rsm, ism, fw, fe = __spectral_matrices_IAS(traces, nstations, nwindows, frequency, dfrequency, rft, ift, window_length)
     
-    if diagonal_loading > 0:
+    if diagonal_loading > 0: ### This weights based on the average across frequencies
         print('Diagonal Loading On!')
         rsm += np.identity(nstations) * (rsm.trace() / nsamples) * diagonal_loading
             
